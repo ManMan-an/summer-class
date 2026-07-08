@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>昨夜梦里又回精神病院了</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#000;overflow:hidden;width:100vw;height:100vh;
+  font-family:"Georgia","Noto Serif SC","STSong",serif;
+}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+.caption{
+  position:fixed;bottom:clamp(32px,8vh,80px);left:50%;transform:translateX(-50%);
+  z-index:10;text-align:center;max-width:620px;width:90%;pointer-events:none;
+  color:rgba(222,215,205,0.9);font-size:clamp(1rem,2.4vw,1.25rem);
+  line-height:1.9;letter-spacing:0.05em;
+  text-shadow:0 0 40px rgba(0,0,0,0.95),0 0 80px rgba(0,0,0,0.5);
+  transition:opacity 1.5s,transform 1.5s;
+  opacity:0;transform:translateY(12px);
+}
+.caption.show{opacity:1;transform:translateY(0)}
+
+.hint{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:20;color:rgba(210,200,185,0.85);
+  font-size:clamp(1rem,2vw,1.2rem);letter-spacing:0.08em;
+  cursor:pointer;animation:pulse 3.5s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:0.85}}
+
+.bar{position:fixed;bottom:0;left:0;height:1.5px;background:rgba(200,180,155,0.4);z-index:15}
+
+.ear-hint{position:fixed;top:20px;right:24px;z-index:15;color:rgba(180,170,155,0.45);font-size:0.7rem;letter-spacing:0.06em;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="bar" id="bar"></div>
+<div class="ear-hint">🎧 建议戴耳机</div>
+<div class="hint" id="hint">按 空格键 开始</div>
+<div class="caption" id="cap"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════
+const c=document.getElementById('c');
+const ctx=c.getContext('2d');
+let W,H;
+function rs(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
+rs();window.addEventListener('resize',rs);
+
+function L(a,b,t){return a+(b-a)*t}
+function C(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+function S(e0,e1,x){const t=C((x-e0)/(e1-e0),0,1);return t*t*(3-2*t)}
+function R(r,g,b,a){return `rgba(${r|0},${g|0},${b|0},${a})`}
+
+// ── Noise grain texture ──
+const gn=document.createElement('canvas');gn.width=256;gn.height=256;
+const gnC=gn.getContext('2d');
+const gnD=gnC.createImageData(256,256);
+for(let i=0;i<gnD.data.length;i+=4){
+  const v=Math.random()*30;gnD.data[i]=v;gnD.data[i+1]=v;gnD.data[i+2]=v;gnD.data[i+3]=18;
+}
+gnC.putImageData(gnD,0,0);
+function grain(a){ctx.globalAlpha=a;ctx.drawImage(gn,0,0,W,H);ctx.globalAlpha=1}
+
+function vignette(s){
+  const g=ctx.createRadialGradient(W/2,H/2,W*0.3,W/2,H/2,W*0.78);
+  g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,`rgba(0,0,0,${s})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+
+// ═══════════════════════════════════════
+// AUDIO — 安溥 / 黄慧音 / Hans Zimmer
+// ═══════════════════════════════════════
+let AC,mg,an=[];
+function initAudio(){
+  if(AC) return;
+  try{
+    const A=window.AudioContext||window.webkitAudioContext;
+    if(!A) return;
+    AC=new A();mg=AC.createGain();mg.gain.value=0.3;mg.connect(AC.destination);
+  }catch(e){AC=null}
+}
+function stopAll(){an.forEach(n=>{try{n.stop()}catch(e){}});an.length=0}
+
+// 安溥 — airy, gentle, breathing
+function anpuBreath(freq=220,start,dur=8){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const o=AC.createOscillator();const g=AC.createGain();
+  o.type='sine';o.frequency.value=freq;
+  const lfo=AC.createOscillator();const lg=AC.createGain();
+  lfo.frequency.value=0.25;lg.gain.value=8;
+  lfo.connect(lg);lg.connect(o.frequency);lfo.start(t);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.04,t+dur*0.3);
+  g.gain.linearRampToValueAtTime(0.02,t+dur*0.7);g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(g);g.connect(mg);o.start(t);o.stop(t+dur);
+  an.push(o,lfo);
+}
+
+// 黄慧音 — bell/chime meditation
+function huangBell(freq=440,start,dur=6){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const o=AC.createOscillator();const g=AC.createGain();
+  const f=AC.createBiquadFilter();
+  o.type='sine';o.frequency.value=freq;
+  f.type='bandpass';f.frequency.value=freq;f.Q.value=20;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.1,t+0.08);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(f);f.connect(g);g.connect(mg);
+  o.start(t);o.stop(t+dur);an.push(o);
+}
+
+// 黄慧音 — deep drone
+function huangDrone(freq=55,start,dur=20){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const o=AC.createOscillator();const g=AC.createGain();
+  const f=AC.createBiquadFilter();
+  o.type='sine';o.frequency.value=freq;
+  f.type='lowpass';f.frequency.value=150;f.Q.value=2;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+3);
+  g.gain.linearRampToValueAtTime(0.04,t+dur-2);g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(f);f.connect(g);g.connect(mg);
+  o.start(t);o.stop(t+dur);an.push(o);
+}
+
+// Hans Zimmer — deep organ swell
+function zimmerSwell(base=40,start,dur=15){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  [1,2,3,4,6,8].forEach((h,i)=>{
+    const o=AC.createOscillator();const g=AC.createGain();
+    o.type='sine';o.frequency.value=base*h;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(0.025/(i+1),t+dur*0.45);
+    g.gain.linearRampToValueAtTime(0.012/(i+1),t+dur*0.75);
+    g.gain.linearRampToValueAtTime(0,t+dur);
+    o.connect(g);g.connect(mg);o.start(t);o.stop(t+dur);an.push(o);
+  });
+}
+
+// Heartbeat
+function heartbeat(start,bpm=55,dur=12){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const iv=60/bpm;
+  for(let i=0;i<dur/iv;i++){
+    const o1=AC.createOscillator();const g1=AC.createGain();
+    o1.type='sine';o1.frequency.value=35;
+    g1.gain.setValueAtTime(0,t+i*iv);
+    g1.gain.linearRampToValueAtTime(0.12,t+i*iv+0.04);
+    g1.gain.exponentialRampToValueAtTime(0.001,t+i*iv+0.35);
+    o1.connect(g1);g1.connect(mg);o1.start(t+i*iv);o1.stop(t+i*iv+0.4);an.push(o1);
+  }
+}
+
+// Water texture
+function waterTex(start,dur=15){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const bs=AC.sampleRate*2;
+  const b=AC.createBuffer(1,bs,AC.sampleRate);
+  const d=b.getChannelData(0);
+  for(let i=0;i<bs;i++) d[i]=(Math.random()*2-1)*0.04;
+  const s=AC.createBufferSource();s.buffer=b;s.loop=true;
+  const g=AC.createGain();const f=AC.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=3500;f.Q.value=2;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+2);
+  g.gain.linearRampToValueAtTime(0,t+dur);
+  s.connect(f);f.connect(g);g.connect(mg);s.start(t);s.stop(t+dur);an.push(s);
+}
+
+// Cold drone — Twin Peaks inspired
+function coldDrone(freq=45,start,dur=20){
+  if(!AC) return;
+  const t=AC.currentTime+start;
+  const o=AC.createOscillator();const g=AC.createGain();
+  const f=AC.createBiquadFilter();
+  o.type='sawtooth';o.frequency.value=freq;o.detune.value=-8;
+  f.type='lowpass';f.frequency.value=120;f.Q.value=5;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.06,t+4);
+  g.gain.linearRampToValueAtTime(0.03,t+dur-3);g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(f);f.connect(g);g.connect(mg);o.start(t);o.stop(t+dur);an.push(o);
+}
+
+// ═══════════════════════════════════════
+// SCENE DRAWING FUNCTIONS
+// ═══════════════════════════════════════
+
+function drawCorridor(p,time){
+  // p: 0→1 through this scene
+  ctx.fillStyle='#060a08';ctx.fillRect(0,0,W,H);
+
+  // Wall
+  const wallGrad=ctx.createLinearGradient(0,0,0,H);
+  wallGrad.addColorStop(0,R(18,22,20,1));wallGrad.addColorStop(0.3,R(14,18,15,1));
+  wallGrad.addColorStop(0.7,R(12,15,12,1));wallGrad.addColorStop(1,R(10,13,10,1));
+  ctx.fillStyle=wallGrad;ctx.fillRect(0,0,W,H);
+
+  // Ceiling lights
+  for(let i=0;i<5;i++){
+    const lx=W*0.15+i*W*0.175;
+    const flicker=Math.sin(time*7.3+i*1.7)*0.03+0.97;
+    // Light fixture
+    ctx.fillStyle=R(200,215,195,0.18*flicker);
+    ctx.fillRect(lx-32,H*0.04,64,4);
+    // Light pool on floor
+    const pool=ctx.createRadialGradient(lx,H*0.5,5,lx,H*0.55,320);
+    pool.addColorStop(0,R(180,210,195,0.07*flicker));
+    pool.addColorStop(0.4,R(160,190,175,0.03*flicker));
+    pool.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pool;ctx.fillRect(0,H*0.3,W,H*0.5);
+  }
+
+  // Floor line
+  ctx.strokeStyle=R(40,48,42,0.5);ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.moveTo(0,H*0.72);ctx.lineTo(W,H*0.72);ctx.stroke();
+
+  // Floor reflection
+  const flGrad=ctx.createLinearGradient(0,H*0.72,0,H);
+  flGrad.addColorStop(0,R(25,30,25,0.4));flGrad.addColorStop(1,R(15,18,15,0.8));
+  ctx.fillStyle=flGrad;ctx.fillRect(0,H*0.72,W,H*0.28);
+
+  // Door at end
+  const dAlpha=S(0.1,0.6,p);
+  const dx=W*0.5,dy=H*0.25,dw=90,dh=140;
+  ctx.fillStyle=R(16,22,18,0.8*dAlpha);
+  ctx.fillRect(dx-dw/2,dy,dw,dh);
+  ctx.strokeStyle=R(50,60,55,0.5*dAlpha);ctx.lineWidth=1;
+  ctx.strokeRect(dx-dw/2,dy,dw,dh);
+  // Light under door
+  ctx.fillStyle=R(190,215,200,0.12*dAlpha);
+  ctx.fillRect(dx-dw/2+5,dy+dh-3,dw-10,3);
+
+  grain(0.05);vignette(0.55);
+}
+
+function drawBathroom(p,time){
+  ctx.fillStyle='#050806';ctx.fillRect(0,0,W,H);
+
+  // Low ceiling压迫
+  const ceilH=H*0.2;
+  ctx.fillStyle=R(16,20,18,0.95);ctx.fillRect(0,0,W,ceilH);
+  ctx.fillStyle=R(22,26,24,0.3);ctx.fillRect(0,ceilH,W,2);
+
+  // Gray wall tiles
+  const ts=C(28,55,W/18);
+  for(let y=ceilH+2;y<H*0.73;y+=ts){
+    for(let x=0;x<W;x+=ts){
+      const v=Math.sin(x*0.06+y*0.06)*3+Math.random()*2;
+      ctx.fillStyle=R(48+v,52+v,50+v,0.5);
+      ctx.fillRect(x+1,y+1,ts-2,ts-2);
+    }
+  }
+
+  // Dark red floor
+  const flGrad=ctx.createLinearGradient(0,H*0.73,0,H);
+  flGrad.addColorStop(0,R(38,8,6,0.85));flGrad.addColorStop(0.5,R(32,6,4,0.9));
+  flGrad.addColorStop(1,R(20,4,2,0.95));
+  ctx.fillStyle=flGrad;ctx.fillRect(0,H*0.73,W,H*0.27);
+
+  // Floor tile lines
+  for(let x=0;x<W;x+=ts*1.3){
+    ctx.strokeStyle=R(55,20,15,0.3);ctx.lineWidth=0.6;
+    ctx.beginPath();ctx.moveTo(x,H*0.73);ctx.lineTo(x,H);ctx.stroke();
+  }
+
+  // Cold bare bulb
+  const bx=W*0.5,by=ceilH+20;
+  const flicker=Math.sin(time*11.7)*0.06+0.94;
+  const glow=ctx.createRadialGradient(bx,by,4,bx,by,260);
+  glow.addColorStop(0,R(195,205,185,0.22*flicker));
+  glow.addColorStop(0.25,R(155,165,145,0.08*flicker));
+  glow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+  // Bulb
+  ctx.fillStyle=R(210,218,195,0.35*flicker);
+  ctx.beginPath();ctx.arc(bx,by,4.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=R(230,235,215,0.4*flicker);
+  ctx.fillRect(bx-3,by-0.8,6,1.6);
+
+  // Shower stalls
+  for(let i=0;i<5;i++){
+    const sx=W*0.08+i*W*0.21;
+    ctx.strokeStyle=R(52,56,52,0.45);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(sx,ceilH+5);ctx.lineTo(sx,H*0.73);ctx.stroke();
+  }
+
+  grain(0.06);vignette(0.6);
+}
+
+function drawHiding(p,time){
+  ctx.fillStyle='#030504';ctx.fillRect(0,0,W,H);
+
+  const vx=W*0.5,vy=H*0.28;
+
+  // Perspective corridor
+  for(let i=0;i<8;i++){
+    const d=i/7;
+    const ww=L(700,50,d);const wh=L(H*0.55,88,d);
+    const wx=vx-ww/2,wy=vy+d*165;
+    const alpha=0.08+d*0.38;
+    ctx.strokeStyle=R(44+Math.sin(i)*8,48+Math.sin(i)*8,45+Math.sin(i)*8,alpha);
+    ctx.lineWidth=0.7;ctx.strokeRect(wx,wy,ww,wh);
+  }
+
+  // Last stall
+  const sw=50,sh=82,sx=vx-sw/2,sy=vy+135;
+  ctx.fillStyle=R(10,13,10,0.8);ctx.fillRect(sx,sy,sw,sh);
+  ctx.strokeStyle=R(50,54,50,0.5);ctx.lineWidth=1;ctx.strokeRect(sx,sy,sw,sh);
+
+  // Curled figure
+  const fx=sx+sw/2,fy=sy+sh*0.58;
+  // White dress - thin body
+  ctx.fillStyle=R(215,207,196,0.18);ctx.beginPath();
+  ctx.ellipse(fx,fy,9,13,0.3,0,Math.PI*2);ctx.fill();
+  // Head
+  ctx.fillStyle=R(208,198,186,0.14);ctx.beginPath();
+  ctx.arc(fx-3,fy-11,5,0,Math.PI*2);ctx.fill();
+  // Long hair cascading
+  ctx.fillStyle=R(35,30,25,0.1);ctx.beginPath();
+  ctx.ellipse(fx-5,fy-8,3,11,0.25,0,Math.PI*2);ctx.fill();
+  // Knees pulled up
+  ctx.fillStyle=R(210,200,190,0.08);ctx.beginPath();
+  ctx.ellipse(fx+3,fy+5,5,8,0.4,0,Math.PI*2);ctx.fill();
+
+  // Cold breath
+  const breathAlpha=Math.sin(time*0.5)*0.02+0.025;
+  ctx.fillStyle=R(170,185,200,breathAlpha);ctx.beginPath();
+  ctx.arc(fx-8,fy-14,3.8,0,Math.PI*2);ctx.fill();
+
+  grain(0.07);vignette(0.65);
+}
+
+function drawQuiet(p,time){
+  // Deep blue quiet
+  ctx.fillStyle='#020408';ctx.fillRect(0,0,W,H);
+
+  const breathe=Math.sin(time*0.4)*0.5+0.5;
+  const warmGlow=ctx.createRadialGradient(W*0.5,H*0.5,20,W*0.5,H*0.5,280);
+  warmGlow.addColorStop(0,R(35,45,85,0.12*breathe));
+  warmGlow.addColorStop(0.5,R(20,30,60,0.04*breathe));
+  warmGlow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=warmGlow;ctx.fillRect(0,0,W,H);
+
+  // Curled figure - almost sleeping
+  const fx=W*0.5,fy=H*0.52;
+  const bodyScale=1+breathe*0.04;
+  ctx.save();ctx.translate(fx,fy);ctx.scale(bodyScale,bodyScale);ctx.translate(-fx,-fy);
+  ctx.fillStyle=R(200,190,182,0.1);ctx.beginPath();
+  ctx.ellipse(fx,fy,13,21,0.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=R(180,170,162,0.06);ctx.beginPath();
+  ctx.arc(fx-2,fy-18,5.5,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  grain(0.04);vignette(0.5);
+}
+
+function drawPeopleEnter(p,time){
+  ctx.fillStyle='#020304';ctx.fillRect(0,0,W,H);
+
+  // Shake effect
+  const shake=Math.sin(time*13)*2.5*C(p*2.5,0,1);
+  ctx.save();ctx.translate(shake,Math.cos(time*10)*1.8*C(p*2,0,1));
+
+  // Door slash of light
+  const dOpen=S(0,0.3,p);
+  const lw=dOpen*380;
+  ctx.fillStyle=R(200,210,215,0.2*dOpen);
+  ctx.fillRect(W*0.5-lw/2,H*0.1,lw,H*0.5);
+
+  // Silhouettes
+  for(let i=0;i<5;i++){
+    const sx=W*0.25+i*W*0.14+Math.sin(time*2.5+i)*16;
+    const sy=H*0.15+i*30;
+    const alpha=0.22*(1-Math.abs(p-0.5)*2);
+    ctx.fillStyle=R(6,8,6,C(alpha,0,0.28));ctx.beginPath();
+    ctx.ellipse(sx,sy,8,23,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(sx,sy-19,6,0,Math.PI*2);ctx.fill();
+  }
+
+  // Footstep thuds
+  const step=(Math.sin(time*2.8)>0.72)?0.08:0;
+  ctx.fillStyle=R(180,190,200,step);ctx.fillRect(0,0,W,H);
+
+  ctx.restore();
+  grain(0.06);vignette(0.58);
+}
+
+function drawGirlEnters(p,time){
+  // p: 0→1
+  // Sub-phases
+  const ph1=S(0,0.2,p);   // door opens
+  const ph2=S(0.2,0.5,p);  // she approaches
+  const ph3=S(0.5,0.75,p); // hand reaches
+  const ph4=S(0.75,1,p);   // the touch
+
+  ctx.fillStyle='#030406';ctx.fillRect(0,0,W,H);
+
+  // Stall enclosure
+  const sx=W*0.15,sw=W*0.7,sy=H*0.12,sh=H*0.76;
+  ctx.strokeStyle=R(45,48,44,0.4);ctx.lineWidth=1;ctx.strokeRect(sx,sy,sw,sh);
+
+  // Shower head
+  ctx.fillStyle=R(38,42,36,0.3);ctx.fillRect(W*0.48,sy+6,W*0.04,5);
+  ctx.fillStyle=R(48,52,46,0.18);ctx.beginPath();ctx.arc(W*0.5,sy+14,8,0,Math.PI*2);ctx.fill();
+
+  // ── NARRATOR (right) — long hair, white dress, thin ──
+  const vx=sx+sw*0.72,vy=sy+sh*0.55;
+  // White dress
+  ctx.fillStyle=R(218,212,202,0.16+ph2*0.06);ctx.beginPath();
+  ctx.ellipse(vx,vy,9,22,0.08,0,Math.PI*2);ctx.fill();
+  // Head
+  ctx.fillStyle=R(208,198,186,0.13+ph2*0.05);ctx.beginPath();
+  ctx.arc(vx-2,vy-19,6,0,Math.PI*2);ctx.fill();
+  // Long hair
+  ctx.fillStyle=R(32,27,22,0.11+ph2*0.03);
+  ctx.beginPath();ctx.ellipse(vx-6,vy-13,3.5,11,0.3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(vx-3,vy-7,3,9,0.1,0,Math.PI*2);ctx.fill();
+
+  // ── GIRL (left) — short hair, dark tee, black bracelet ──
+  if(ph1>0.01){
+    const gx=sx+sw*0.25,gy=sy+sh*0.5;
+    // Body
+    ctx.fillStyle=R(155,150,168,0.12*ph2);ctx.beginPath();
+    ctx.ellipse(gx,gy,9,20,-0.05,0,Math.PI*2);ctx.fill();
+    // Dark t-shirt
+    ctx.fillStyle=R(35,33,38,0.1*ph2);
+    ctx.fillRect(gx-7,gy-5,14,12);
+    // Short hair
+    ctx.fillStyle=R(30,26,32,0.12*ph2);ctx.beginPath();
+    ctx.arc(gx+1,gy-18,5.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=R(26,22,28,0.08*ph2);
+    ctx.fillRect(gx-6,gy-21,13,4);
+    // Black bracelet
+    if(ph3>0.01){
+      ctx.strokeStyle=R(18,15,18,0.18*ph3);ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.moveTo(gx-5,gy-1);ctx.lineTo(gx+3,gy+2);ctx.stroke();
+    }
+  }
+
+  // ── Her hand reaching ──
+  if(ph3>0.01){
+    const hx=L(sx+sw*0.38,vx-13,ph3);
+    const hy=L(sy+sh*0.38,vy+10,ph3);
+    // Arm
+    ctx.strokeStyle=R(175,170,180,0.12*ph3);ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(sx+sw*0.28,sy+sh*0.4);
+    ctx.lineTo(hx,hy);ctx.stroke();
+    // Hand
+    ctx.fillStyle=R(190,183,193,0.16*ph3);ctx.beginPath();
+    ctx.arc(hx,hy,3.5,0,Math.PI*2);ctx.fill();
+    // Fingers extending
+    ctx.strokeStyle=R(185,178,188,0.13*ph3);ctx.lineWidth=0.9;
+    for(let i=0;i<3;i++){
+      ctx.beginPath();ctx.moveTo(hx,hy);ctx.lineTo(hx-2+i*2.5,hy+9);ctx.stroke();
+    }
+  }
+
+  // ── The touch — cold blue ──
+  if(ph4>0.01){
+    const tx=vx-11,ty=vy+10;
+    const cg=ctx.createRadialGradient(tx,ty,1,tx,ty,28);
+    cg.addColorStop(0,R(155,190,218,0.32*ph4));
+    cg.addColorStop(0.4,R(125,165,205,0.13*ph4));
+    cg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=cg;ctx.fillRect(sx,sy,sw,sh);
+
+    // Tremble
+    const tr=Math.sin(time*20)*0.35*ph4;
+    ctx.save();ctx.translate(0,tr);
+
+    // Water starting — pearlescent
+    const wa=C((ph4-0.3)*1.5,0,1);
+    for(let i=0;i<6;i++){
+      const wx=W*0.5+Math.sin(i*1.3)*5,wy=sy+16+i*14;
+      ctx.fillStyle=R(175,205,228,0.1*wa);ctx.beginPath();
+      ctx.arc(wx,wy,2.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=R(215,232,245,0.12*wa);ctx.beginPath();
+      ctx.arc(wx+1,wy+7,1.8,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  grain(0.06);vignette(0.52);
+}
+
+function drawProtected(p,time){
+  // "她会保护我" — warmth in the cold
+  ctx.fillStyle='#020406';ctx.fillRect(0,0,W,H);
+
+  // Warming light
+  const wAlpha=S(0,0.4,p);
+  const warm=ctx.createRadialGradient(W*0.5,H*0.48,15,W*0.5,H*0.48,W*0.7);
+  warm.addColorStop(0,R(255,240,220,0.18*wAlpha));
+  warm.addColorStop(0.3,R(200,180,160,0.08*wAlpha));
+  warm.addColorStop(0.6,R(120,130,160,0.03*wAlpha));
+  warm.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=warm;ctx.fillRect(0,0,W,H);
+
+  // Two figures close together
+  const ff=S(0.15,0.6,p);
+  const fx=W*0.5,fy=H*0.5;
+  // Narrator (right, white dress, long hair)
+  ctx.fillStyle=R(225,218,208,0.11*ff);ctx.beginPath();
+  ctx.ellipse(fx+10,fy,8,18,0.05,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=R(218,210,200,0.08*ff);ctx.beginPath();
+  ctx.arc(fx+8,fy-17,5,0,Math.PI*2);ctx.fill();
+  // Long hair
+  ctx.fillStyle=R(35,30,25,0.06*ff);
+  ctx.beginPath();ctx.ellipse(fx+4,fy-11,2.5,10,0.2,0,Math.PI*2);ctx.fill();
+
+  // Girl (left, short hair, holding/protecting)
+  ctx.fillStyle=R(170,165,180,0.1*ff);ctx.beginPath();
+  ctx.ellipse(fx-8,fy-1,8,18,-0.03,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=R(32,28,34,0.06*ff);
+  ctx.fillRect(fx-14,fy-7,12,10);
+  ctx.fillStyle=R(165,158,172,0.08*ff);ctx.beginPath();
+  ctx.arc(fx-7,fy-15,5,0,Math.PI*2);ctx.fill();
+  // Arm around narrator
+  ctx.strokeStyle=R(175,168,182,0.08*ff);ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(fx-2,fy-5);ctx.quadraticCurveTo(fx+5,fy-10,fx+12,fy-8);ctx.stroke();
+
+  // Water droplets — now pearlescent, beautiful
+  if(p>0.4){
+    const da=S(0.4,1,p);
+    for(let i=0;i<15;i++){
+      const dx=W*0.5+Math.sin(time*0.4+i*2.1)*W*0.25;
+      const dy=H*0.35-Math.cos(time*0.3+i*1.5)*H*0.2;
+      const alpha=0.08+Math.sin(time*0.7+i)*0.05;
+      ctx.fillStyle=R(225,238,250,C(alpha*da,0,0.22));
+      ctx.beginPath();ctx.arc(dx,dy,1.6+Math.random()*1,0,Math.PI*2);ctx.fill();
+      // Pearl shimmer
+      ctx.fillStyle=R(240,245,252,C(alpha*da*0.7,0,0.18));
+      ctx.beginPath();ctx.arc(dx-0.5,dy-0.5,0.8,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  grain(0.04);vignette(0.4);
+}
+
+function drawAwakening(p,time){
+  // "然后我便醒来了" -> into Green Tara light
+  ctx.fillStyle='#020304';ctx.fillRect(0,0,W,H);
+
+  // Dawn light growing
+  const dawn=S(0,0.5,p);
+  const dg=ctx.createRadialGradient(W*0.5,H*0.45,15,W*0.5,H*0.45,W*0.85);
+  dg.addColorStop(0,R(252,248,238,0.35*dawn));
+  dg.addColorStop(0.25,R(225,215,200,0.15*dawn));
+  dg.addColorStop(0.5,R(160,170,190,0.06*dawn));
+  dg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=dg;ctx.fillRect(0,0,W,H);
+
+  // Two figures fading into light
+  if(p<0.6){
+    const fa=1-S(0.3,0.6,p);
+    const fx=W*0.5,fy=H*0.5;
+    ctx.fillStyle=R(230,224,215,0.1*fa);ctx.beginPath();
+    ctx.ellipse(fx+8,fy,7,16,0.05,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=R(180,175,188,0.08*fa);ctx.beginPath();
+    ctx.ellipse(fx-7,fy-1,7,16,-0.03,0,Math.PI*2);ctx.fill();
+  }
+
+  // Green Tara emerges
+  const tara=S(0.4,0.85,p);
+  // Emerald halo
+  const hb=Math.sin(time*0.35)*0.3+0.7;
+  ctx.strokeStyle=R(100,170,140,0.18*tara*hb);ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(W*0.5,H*0.42,W*0.16,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle=R(130,195,165,0.1*tara*hb);ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.arc(W*0.5,H*0.42,W*0.18,0,Math.PI*2);ctx.stroke();
+
+  // Seated form
+  const tx=W*0.5,ty=H*0.48;
+  ctx.fillStyle=R(110,170,148,0.25*tara);ctx.beginPath();
+  ctx.ellipse(tx,ty,W*0.05,H*0.12,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=R(130,185,160,0.28*tara);ctx.beginPath();
+  ctx.arc(tx,ty-H*0.12,W*0.045,0,Math.PI*2);ctx.fill();
+  // Right foot extended
+  ctx.fillStyle=R(110,170,148,0.2*tara);ctx.beginPath();
+  ctx.ellipse(tx+W*0.05,ty+H*0.09,W*0.025,H*0.018,0.3,0,Math.PI*2);ctx.fill();
+  // Lotus seat
+  ctx.fillStyle=R(170,210,195,0.12*tara);ctx.beginPath();
+  ctx.ellipse(tx,ty+H*0.11,W*0.09,H*0.025,0,0,Math.PI*2);ctx.fill();
+
+  // Light particles
+  for(let i=0;i<10;i++){
+    const px=tx+Math.sin(time*0.5+i*2.4)*W*0.13;
+    const py=ty-H*0.1+Math.cos(time*0.4+i*1.8)*H*0.18;
+    ctx.fillStyle=R(190,225,210,C(0.1+Math.sin(time+i)*0.08,0,0.25)*tara);
+    ctx.beginPath();ctx.arc(px,py,1.5+Math.random(),0,Math.PI*2);ctx.fill();
+  }
+
+  // Final fade to warm white
+  if(p>0.8){
+    const ff=S(0.8,1,p);
+    ctx.fillStyle=R(248,244,236,0.45*ff);ctx.fillRect(0,0,W,H);
+  }
+
+  grain(0.03);vignette(0.25+0.25*(1-p));
+}
+
+// ═══════════════════════════════════════
+// TIMELINE
+// ═══════════════════════════════════════
+const TOTAL=250; // ~4 minutes
+
+const scenes=[
+  {name:'corridor',  start:0,   end:32,  draw:drawCorridor},
+  {name:'bathroom',  start:32,  end:60,  draw:drawBathroom},
+  {name:'hiding',    start:60,  end:95,  draw:drawHiding},
+  {name:'quiet',     start:95,  end:115, draw:drawQuiet},
+  {name:'people',    start:115, end:138, draw:drawPeopleEnter},
+  {name:'girl',      start:138, end:185, draw:drawGirlEnters},
+  {name:'protected', start:185, end:220, draw:drawProtected},
+  {name:'awakening', start:220, end:250, draw:drawAwakening},
+];
+
+const cues=[
+  {t:4,  text:"昨夜梦里又回精神病院了"},
+  {t:9,  text:"封闭的病房，消毒水一尘不染"},
+  {t:15, text:"也没有很多人，不像现实里那样粘腻嘈杂"},
+  {t:21, text:"我忘记病房的样子"},
+  {t:26, text:"只记得自己不想在病房里呆"},
+  {t:33, text:"也不想被医生护士抓到"},
+  {t:38, text:"便去卫生间淋浴房躲着"},
+  {t:43, text:"层高很矮，灰色的瓷砖"},
+  {t:48, text:"深红色的地板"},
+  {t:53, text:"由于光线很暗很冷，像大厦里狭长的阁楼"},
+  {t:62, text:"我躲在了最后一个隔间"},
+  {t:68, text:"空间似乎透视般近大远小"},
+  {t:74, text:"我便在最小那里，身体蜷缩"},
+  {t:80, text:"祈祷不要有人来"},
+  {t:86, text:"查房的最后时间似乎也已经过去了"},
+  {t:92, text:"好安静"},
+  {t:97, text:"我想着晚上就在这里睡吧"},
+  {t:104,text:"我不想回病房"},
+  {t:110,text:"……"},
+  {t:117,text:"但不久就有很多人进来"},
+  {t:123,text:"我不敢出声"},
+  {t:128,text:"好像她们是来抓我的一样"},
+  {t:134,text:"但还是被推门走进了"},
+  {t:140,text:"一个女孩进来"},
+  {t:145,text:"我往后移动，要把淋浴的地方让出来"},
+  {t:150,text:"但显然，她望见我完全无所谓似的"},
+  {t:156,text:"我肯定她也是个疯子"},
+  {t:161,text:"我大概穿着一条白色的麻布裙子"},
+  {t:167,text:"我慌张地在一边"},
+  {t:172,text:"她把手伸进来"},
+  {t:176,text:"我的大腿内侧似乎碰到了她的手指"},
+  {t:181,text:"冰冰凉凉的"},
+  {t:185,text:"打开我的唇齿"},
+  {t:190,text:"我好想流泪"},
+  {t:194,text:"但低着头，任她慢慢往里伸"},
+  {t:200,text:"她似乎还示意我不要说话"},
+  {t:205,text:"她会保护我"},
+  {t:210,text:"我们可以一起呆在这里"},
+  {t:215,text:"或者去别的世界"},
+  {t:222,text:"水亮晶晶地流下来"},
+  {t:228,text:"慢慢地像晶莹的珍珠"},
+  {t:236,text:"然后我便醒来了"},
+  {t:245,text:""},
+];
+
+// ── Music cues ──
+function musicAll(){
+  if(!AC) return;
+  // Opening — 黄慧音 drone + bell
+  huangDrone(50,0,35);
+  huangDrone(75,2,30);
+  huangBell(330,5,8);
+  huangBell(440,12,6);
+  // Bathroom enters — cold drone (Twin Peaks)
+  coldDrone(42,32,28);
+  heartbeat(35,52,20);
+  // Hiding — tension
+  coldDrone(38,60,35);
+  huangDrone(55,62,33);
+  zimmerSwell(35,65,25);
+  // Quiet — 安溥 breath
+  anpuBreath(196,97,18);
+  anpuBreath(247,100,15);
+  huangBell(523,102,10);
+  // People — disruption
+  coldDrone(35,117,20);
+  heartbeat(118,65,18);
+  zimmerSwell(30,120,16);
+  // Girl enters — intimate mix
+  anpuBreath(293,140,20);
+  anpuBreath(370,144,18);
+  huangDrone(65,142,40);
+  heartbeat(145,50,35);
+  waterTex(148,30);
+  huangBell(587,150,12);
+  // Protected — warmth returns
+  anpuBreath(330,187,20);
+  anpuBreath(261,190,17);
+  huangDrone(73,188,30);
+  zimmerSwell(45,190,25);
+  // Awakening — Green Tara ending
+  huangBell(440,222,10);
+  huangBell(554,226,8);
+  huangBell(660,230,7);
+  anpuBreath(392,225,20);
+  huangDrone(82,224,26);
+  zimmerSwell(55,228,20);
+}
+
+// ═══════════════════════════════════════
+// PLAYER
+// ═══════════════════════════════════════
+const cap=document.getElementById('cap');
+const bar=document.getElementById('bar');
+const hint=document.getElementById('hint');
+let running=false,startTime=0,animId=null,lastCue=-1;
+
+function setCue(text){
+  // Remove inline styles so CSS transitions work
+  cap.style.opacity='';cap.style.transform='';
+  cap.classList.remove('show');
+  cap.textContent=text||'';
+  if(text){
+    // Force reflow then trigger transition
+    void cap.offsetWidth;
+    cap.classList.add('show');
+  }
+}
+
+function update(time){
+  // Scene
+  for(let i=scenes.length-1;i>=0;i--){
+    if(time>=scenes[i].start){scenes[i].draw((time-scenes[i].start)/(scenes[i].end-scenes[i].start),time);break;}
+  }
+
+  // Cue
+  let ci=-1;
+  for(let i=cues.length-1;i>=0;i--){if(time>=cues[i].t){ci=i;break;}}
+  if(ci!==lastCue){lastCue=ci;setCue(ci>=0?cues[ci].text:'');}
+
+  bar.style.width=(time/TOTAL*100)+'%';
+}
+
+function start(){
+  if(running) return;
+  initAudio();
+  stopAll();
+  musicAll();
+  running=true;startTime=performance.now();lastCue=-1;
+  setCue('');hint.style.display='none';
+  if(!animId) animId=requestAnimationFrame(loop);
+}
+
+function loop(ts){
+  if(running){
+    const t=(ts-startTime)/1000;
+    if(t>=TOTAL){update(TOTAL);running=false;hint.style.display='block';hint.textContent='按空格键重新播放';}
+    else update(t);
+  }
+  animId=requestAnimationFrame(loop);
+}
+
+// Controls
+hint.addEventListener('click',start);
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.key===' '){e.preventDefault();start();}});
+
+// Init
+update(0);animId=requestAnimationFrame(loop);
+window.addEventListener('resize',()=>{rs();if(!running)update(0);});
+</script>
+</body>
+</html>
