@@ -288,6 +288,288 @@ function coldDrone(freq=45,start,dur=20){
 // SCENE DRAWING FUNCTIONS
 // ═══════════════════════════════════════
 
+// ── Scene 0: 玉佛前 ──
+function drawBuddha(p,time){
+  ctx.fillStyle='#040608';ctx.fillRect(0,0,W,H);
+
+  // Deep green-amber clash
+  const bgGrad=ctx.createLinearGradient(0,0,W,H);
+  bgGrad.addColorStop(0,R(8,14,10,1));
+  bgGrad.addColorStop(0.4,R(12,18,14,1));
+  bgGrad.addColorStop(0.7,R(16,14,8,1));
+  bgGrad.addColorStop(1,R(10,8,4,1));
+  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,W,H);
+
+  // Warm amber light source — top right, soft
+  const amber=ctx.createRadialGradient(W*0.65,H*0.2,20,W*0.5,H*0.4,W*0.8);
+  amber.addColorStop(0,R(200,150,60,0.15));
+  amber.addColorStop(0.3,R(180,120,40,0.06));
+  amber.addColorStop(0.6,R(120,80,30,0.02));
+  amber.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=amber;ctx.fillRect(0,0,W,H);
+
+  // Green shadow — bottom left
+  const green=ctx.createRadialGradient(W*0.3,H*0.7,30,W*0.35,H*0.6,W*0.7);
+  green.addColorStop(0,R(20,60,40,0.12));
+  green.addColorStop(0.5,R(10,40,25,0.04));
+  green.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=green;ctx.fillRect(0,0,W,H);
+
+  // Incense smoke — drifting curves
+  for(let i=0;i<4;i++){
+    const sx=W*0.45+i*W*0.04;
+    const sy=H*0.5-i*0.05;
+    ctx.strokeStyle=R(180,160,140,0.04+Math.sin(time*0.3+i)*0.02);
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(sx,sy);
+    ctx.quadraticCurveTo(sx+Math.sin(time*0.5+i)*30,sy-60-Math.cos(time*0.4+i)*40,
+      sx+Math.sin(time*0.6+i)*50,sy-120-Math.cos(time*0.5+i)*60);
+    ctx.stroke();
+    // Smoke widening
+    ctx.lineWidth=3;ctx.globalAlpha=0.03;
+    ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1.5;
+  }
+
+  // Jade Buddha statue — left side, backlit silhouette
+  const bAlpha=S(0.1,0.6,p);
+  const bx=W*0.22,by=H*0.4;
+  // Base/pedestal
+  ctx.fillStyle=R(25,35,28,0.6*bAlpha);
+  ctx.fillRect(bx-35,by+80,70,20);
+  ctx.fillStyle=R(30,40,30,0.4*bAlpha);
+  ctx.fillRect(bx-30,by+75,60,10);
+  // Buddha body — jade silhouette
+  ctx.fillStyle=R(35,55,42,0.5*bAlpha);
+  ctx.beginPath();ctx.ellipse(bx,by+25,28,42,0,0,Math.PI*2);ctx.fill();
+  // Head
+  ctx.fillStyle=R(40,60,45,0.45*bAlpha);
+  ctx.beginPath();ctx.arc(bx,by-28,20,0,Math.PI*2);ctx.fill();
+  // Halo behind head
+  ctx.strokeStyle=R(120,180,140,0.15*bAlpha);ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.arc(bx,by-28,30,0,Math.PI*2);ctx.stroke();
+  // Usnisa (top knot)
+  ctx.fillStyle=R(45,65,48,0.35*bAlpha);
+  ctx.beginPath();ctx.ellipse(bx,by-44,10,6,0,0,Math.PI*2);ctx.fill();
+  // Jade texture — subtle mottling
+  for(let i=0;i<5;i++){
+    ctx.fillStyle=R(50+Math.random()*20,70+Math.random()*20,55+Math.random()*20,0.06*bAlpha);
+    ctx.beginPath();ctx.arc(bx-10+Math.random()*20,by-10+Math.random()*40,3+Math.random()*6,0,Math.PI*2);ctx.fill();
+  }
+
+  // Kneeling silhouette — right side, backlit
+  const kAlpha=S(0.2,0.8,p);
+  const kx=W*0.68,ky=H*0.58;
+  // Body — kneeling, small
+  ctx.fillStyle=R(8,10,8,0.7*kAlpha);
+  ctx.beginPath();ctx.ellipse(kx,ky,14,20,0.1,0,Math.PI*2);ctx.fill();
+  // Head — bowed
+  ctx.fillStyle=R(6,8,6,0.65*kAlpha);
+  ctx.beginPath();ctx.arc(kx-2,ky-18,8,0,Math.PI*2);ctx.fill();
+  // Backlight rim light
+  ctx.strokeStyle=R(200,160,60,0.12*kAlpha);ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(kx-2,ky-18,9,2.8,4.5);ctx.stroke();
+  ctx.beginPath();ctx.ellipse(kx,ky,15,21,0.1,2.8,4.5);ctx.stroke();
+}
+
+// ── Scene 1: 方舟搁浅 ──
+function drawArk(p,time){
+  ctx.fillStyle='#050404';ctx.fillRect(0,0,W,H);
+
+  // Dry earth tones
+  const earthGrad=ctx.createLinearGradient(0,0,0,H);
+  earthGrad.addColorStop(0,R(40,30,18,1));
+  earthGrad.addColorStop(0.3,R(50,35,20,1));
+  earthGrad.addColorStop(0.7,R(60,40,22,1));
+  earthGrad.addColorStop(1,R(35,22,12,1));
+  ctx.fillStyle=earthGrad;ctx.fillRect(0,0,W,H);
+
+  // Thin sunlight — pale, dusty
+  const sun=ctx.createRadialGradient(W*0.5,H*0.15,30,W*0.5,H*0.5,W*0.7);
+  sun.addColorStop(0,R(220,200,150,0.08));
+  sun.addColorStop(0.4,R(180,150,100,0.03));
+  sun.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=sun;ctx.fillRect(0,0,W,H);
+
+  // Cracked ground lines
+  for(let i=0;i<12;i++){
+    const cx=W*0.1+Math.random()*W*0.8,cy=H*0.55+Math.random()*H*0.4;
+    ctx.strokeStyle=R(80,50,25,0.35);ctx.lineWidth=0.6;
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.random()*40-20,cy+Math.random()*50+10);
+    ctx.lineTo(cx+Math.random()*60-30,cy+Math.random()*80+20);
+    ctx.stroke();
+  }
+
+  // Distant factory silhouette
+  const fAlpha=S(0.1,0.5,p);
+  for(let i=0;i<4;i++){
+    const fx=W*0.4+i*W*0.05,fh=40+Math.random()*50;
+    ctx.fillStyle=R(30,22,15,0.4*fAlpha);
+    ctx.fillRect(fx-6,H*0.28-fh,12,fh);
+    if(i%2===0){ctx.fillRect(fx-3,H*0.28-fh-25,6,25);}
+  }
+  // Smoke stack
+  ctx.fillStyle=R(35,25,18,0.35*fAlpha);
+  ctx.fillRect(W*0.52,H*0.18,8,50);
+
+  // The stranded ark — center
+  const aAlpha=S(0.15,0.8,p);
+  const ax=W*0.5,ay=H*0.58;
+  ctx.save();ctx.translate(ax,ay);
+
+  // Shadow under boat
+  ctx.fillStyle=R(20,14,8,0.3*aAlpha);
+  ctx.beginPath();ctx.ellipse(0,25,90,10,0,0,Math.PI*2);ctx.fill();
+
+  // Boat hull — weathered, peeling
+  ctx.fillStyle=R(90,65,40,0.5*aAlpha);
+  ctx.beginPath();ctx.moveTo(-85,18);ctx.quadraticCurveTo(-95,0,-75,-8);
+  ctx.lineTo(75,-8);ctx.quadraticCurveTo(95,0,85,18);
+  ctx.closePath();ctx.fill();
+  ctx.strokeStyle=R(60,40,22,0.5*aAlpha);ctx.lineWidth=1.2;ctx.stroke();
+
+  // Peeling paint patches
+  for(let i=0;i<6;i++){
+    const px=-70+i*28,py=-6+Math.random()*12;
+    ctx.fillStyle=R(110,85,55,0.25*aAlpha);
+    ctx.beginPath();ctx.arc(px,py,5+Math.random()*8,0,Math.PI*2);ctx.fill();
+  }
+
+  // Mast
+  ctx.strokeStyle=R(70,45,25,0.4*aAlpha);ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(0,-55);ctx.stroke();
+
+  // Limp sail — torn
+  ctx.fillStyle=R(130,100,70,0.15*aAlpha);
+  ctx.beginPath();ctx.moveTo(0,-50);ctx.quadraticCurveTo(30,-40,8,-15);
+  ctx.lineTo(-2,-15);ctx.fill();
+  // Tear in sail
+  ctx.strokeStyle=R(160,130,100,0.08*aAlpha);ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(5,-35);ctx.lineTo(15,-30);ctx.stroke();
+
+  ctx.restore();
+
+  // Dust particles
+  for(let i=0;i<20;i++){
+    const dx=Math.random()*W,dy=Math.random()*H*0.7;
+    const da=0.03+Math.sin(time+i)*0.02;
+    ctx.fillStyle=R(180,150,120,da);ctx.beginPath();
+    ctx.arc(dx,dy,0.8,0,Math.PI*2);ctx.fill();
+  }
+}
+
+// ── Scene 2: 藻泽与玻璃罐桃花 ──
+function drawMarsh(p,time){
+  ctx.fillStyle='#040608';ctx.fillRect(0,0,W,H);
+
+  // Soft marsh tones — green + pink
+  const marshGrad=ctx.createLinearGradient(0,0,0,H);
+  marshGrad.addColorStop(0,R(20,30,22,1));
+  marshGrad.addColorStop(0.4,R(25,35,25,1));
+  marshGrad.addColorStop(0.7,R(30,35,28,1));
+  marshGrad.addColorStop(1,R(20,28,22,1));
+  ctx.fillStyle=marshGrad;ctx.fillRect(0,0,W,H);
+
+  // Soft lighting — gentle, relaxed
+  const soft=ctx.createRadialGradient(W*0.45,H*0.4,20,W*0.5,H*0.5,W*0.75);
+  soft.addColorStop(0,R(220,200,180,0.1));
+  soft.addColorStop(0.4,R(180,160,140,0.04));
+  soft.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=soft;ctx.fillRect(0,0,W,H);
+
+  // Duckweed / algae layer on water
+  for(let i=0;i<30;i++){
+    const dx=Math.random()*W,dy=H*0.55+Math.random()*H*0.4;
+    ctx.fillStyle=R(45+Math.random()*30,70+Math.random()*30,35+Math.random()*20,0.2+Math.random()*0.15);
+    ctx.beginPath();ctx.arc(dx,dy,4+Math.random()*12,0,Math.PI*2);ctx.fill();
+  }
+
+  // Reeds — vertical lines, slight sway
+  for(let i=0;i<8;i++){
+    const rx=W*0.1+i*W*0.11,ry=H*0.6;
+    const sway=Math.sin(time*0.3+i)*4;
+    ctx.strokeStyle=R(60,80,40,0.25);ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx+sway,ry-80-Math.random()*40);ctx.stroke();
+    // Reed head
+    ctx.fillStyle=R(70,90,50,0.2);
+    ctx.beginPath();ctx.ellipse(rx+sway,ry-85-Math.random()*35,3,8,0,0,Math.PI*2);ctx.fill();
+  }
+
+  // The hand holding oar — close-up, lower left
+  const hAlpha=S(0.15,0.7,p);
+  const hx=W*0.35,hy=H*0.5;
+  // Oar shaft
+  ctx.strokeStyle=R(120,90,50,0.4*hAlpha);ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(hx-60,hy-80);ctx.lineTo(hx+30,hy+30);ctx.stroke();
+  // Oar blade
+  ctx.fillStyle=R(140,105,55,0.35*hAlpha);
+  ctx.beginPath();ctx.ellipse(hx-65,hy-85,14,5,-0.5,0,Math.PI*2);ctx.fill();
+  // Hand gripping
+  ctx.fillStyle=R(190,160,130,0.2*hAlpha);
+  ctx.beginPath();ctx.ellipse(hx-10,hy-15,12,8,0.3,0,Math.PI*2);ctx.fill();
+  // Fingers
+  for(let i=0;i<4;i++){
+    ctx.fillStyle=R(180,150,120,0.15*hAlpha);
+    ctx.beginPath();ctx.ellipse(hx-5+i*6,hy-10,2.5,6,0.2,0,Math.PI*2);ctx.fill();
+  }
+
+  // Glass jar with peach blossoms — floating right side
+  const jAlpha=S(0.3,0.85,p);
+  const jx=W*0.62,jy=H*0.45;
+  // Jar body
+  ctx.fillStyle=R(240,225,215,0.06*jAlpha);
+  ctx.fillRect(jx-30,jy-45,60,100);
+  ctx.strokeStyle=R(220,180,160,0.2*jAlpha);ctx.lineWidth=1;
+  ctx.strokeRect(jx-30,jy-45,60,100);
+  // Rim
+  ctx.fillStyle=R(200,160,140,0.18*jAlpha);
+  ctx.fillRect(jx-28,jy-47,56,7);
+  // Glass shine
+  ctx.strokeStyle=R(255,248,240,0.1*jAlpha);ctx.lineWidth=0.7;
+  ctx.beginPath();ctx.moveTo(jx-25,jy-30);ctx.lineTo(jx-25,jy+35);ctx.stroke();
+  // Branch inside
+  ctx.strokeStyle=R(100,65,45,0.25*jAlpha);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(jx,jy+45);ctx.lineTo(jx-5,jy-15);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(jx-5,jy-15);ctx.lineTo(jx-18,jy-30);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(jx-5,jy-5);ctx.lineTo(jx+10,jy-20);ctx.stroke();
+  // Peach blossoms
+  const blossoms=[[jx-18,jy-30,5.5],[jx+10,jy-20,5],[jx-5,jy-15,6],[jx-8,jy-33,4]];
+  blossoms.forEach(([bx,by,br])=>{
+    ctx.fillStyle=R(240,190,180,0.25*jAlpha);ctx.beginPath();ctx.arc(bx,by,br,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=R(220,155,145,0.15*jAlpha);ctx.beginPath();ctx.arc(bx,by,br*0.45,0,Math.PI*2);ctx.fill();
+  });
+  // Petals slowly drifting in water
+  for(let i=0;i<5;i++){
+    const px=jx-15+Math.random()*30,py=jy+10+Math.sin(time*0.3+i)*15;
+    ctx.fillStyle=R(235,185,175,0.15*jAlpha);ctx.beginPath();
+    ctx.arc(px,py,2.5,0,Math.PI*2);ctx.fill();
+  }
+
+  // Brightening transition — 潮水归来
+  const bright=S(0.82,1,p);
+  if(bright>0.01){
+    const bGrad=ctx.createRadialGradient(W*0.5,H*0.5,10,W*0.5,H*0.5,W*0.9);
+    bGrad.addColorStop(0,R(255,250,240,0.15*bright));
+    bGrad.addColorStop(0.4,R(240,230,210,0.06*bright));
+    bGrad.addColorStop(0.7,R(200,190,170,0.02*bright));
+    bGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=bGrad;ctx.fillRect(0,0,W,H);
+
+    // Tide lines rising
+    for(let i=0;i<5;i++){
+      const ty=H*0.3+i*H*0.1;
+      ctx.strokeStyle=R(140,180,190,0.08*bright);ctx.lineWidth=0.8;
+      ctx.beginPath();
+      for(let x=0;x<W;x+=25){
+        ctx.lineTo(x,ty+Math.sin(x*0.012+time*0.4+i)*5);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+// ── Original dream scenes ──
+
 function drawCorridor(p,time){
   // p: 0→1 through this scene
   ctx.fillStyle='#060a08';ctx.fillRect(0,0,W,H);
@@ -697,107 +979,158 @@ function drawAwakening(p,time){
 // ═══════════════════════════════════════
 // TIMELINE
 // ═══════════════════════════════════════
-const TOTAL=250; // ~4 minutes
+const TOTAL=380; // ~6.3 minutes
 
 const scenes=[
-  {name:'corridor',  start:0,   end:32,  draw:drawCorridor},
-  {name:'bathroom',  start:32,  end:60,  draw:drawBathroom},
-  {name:'hiding',    start:60,  end:95,  draw:drawHiding},
-  {name:'quiet',     start:95,  end:115, draw:drawQuiet},
-  {name:'people',    start:115, end:138, draw:drawPeopleEnter},
-  {name:'girl',      start:138, end:185, draw:drawGirlEnters},
-  {name:'protected', start:185, end:220, draw:drawProtected},
-  {name:'awakening', start:220, end:250, draw:drawAwakening},
+  {name:'buddha',    start:0,   end:45,  draw:drawBuddha},
+  {name:'ark',       start:45,  end:95,  draw:drawArk},
+  {name:'marsh',     start:95,  end:150, draw:drawMarsh},
+  {name:'corridor',  start:150, end:178, draw:drawCorridor},
+  {name:'bathroom',  start:178, end:202, draw:drawBathroom},
+  {name:'hiding',    start:202, end:232, draw:drawHiding},
+  {name:'quiet',     start:232, end:248, draw:drawQuiet},
+  {name:'people',    start:248, end:270, draw:drawPeopleEnter},
+  {name:'girl',      start:270, end:315, draw:drawGirlEnters},
+  {name:'protected', start:315, end:348, draw:drawProtected},
+  {name:'awakening', start:348, end:380, draw:drawAwakening},
 ];
 
 const cues=[
-  {t:4,  text:"昨夜梦里又回精神病院了"},
-  {t:9,  text:"封闭的病房，消毒水一尘不染"},
-  {t:15, text:"也没有很多人，不像现实里那样粘腻嘈杂"},
-  {t:21, text:"我忘记病房的样子"},
-  {t:26, text:"只记得自己不想在病房里呆"},
-  {t:33, text:"也不想被医生护士抓到"},
-  {t:38, text:"便去卫生间淋浴房躲着"},
-  {t:43, text:"层高很矮，灰色的瓷砖"},
-  {t:48, text:"深红色的地板"},
-  {t:53, text:"由于光线很暗很冷，像大厦里狭长的阁楼"},
-  {t:62, text:"我躲在了最后一个隔间"},
-  {t:68, text:"空间似乎透视般近大远小"},
-  {t:74, text:"我便在最小那里，身体蜷缩"},
-  {t:80, text:"祈祷不要有人来"},
-  {t:86, text:"查房的最后时间似乎也已经过去了"},
-  {t:92, text:"好安静"},
-  {t:97, text:"我想着晚上就在这里睡吧"},
-  {t:104,text:"我不想回病房"},
-  {t:110,text:"……"},
-  {t:117,text:"但不久就有很多人进来"},
-  {t:123,text:"我不敢出声"},
-  {t:128,text:"好像她们是来抓我的一样"},
-  {t:134,text:"但还是被推门走进了"},
-  {t:140,text:"一个女孩进来"},
-  {t:145,text:"我往后移动，要把淋浴的地方让出来"},
-  {t:150,text:"但显然，她望见我完全无所谓似的"},
-  {t:156,text:"我肯定她也是个疯子"},
-  {t:161,text:"我大概穿着一条白色的麻布裙子"},
-  {t:167,text:"我慌张地在一边"},
-  {t:172,text:"她把手伸进来"},
-  {t:176,text:"我的大腿内侧似乎碰到了她的手指"},
-  {t:181,text:"冰冰凉凉的"},
-  {t:185,text:"打开我的唇齿"},
-  {t:190,text:"我好想流泪"},
-  {t:194,text:"但低着头，任她慢慢往里伸"},
-  {t:200,text:"她似乎还示意我不要说话"},
-  {t:205,text:"她会保护我"},
-  {t:210,text:"我们可以一起呆在这里"},
-  {t:215,text:"或者去别的世界"},
-  {t:222,text:"水亮晶晶地流下来"},
-  {t:228,text:"慢慢地像晶莹的珍珠"},
-  {t:236,text:"然后我便醒来了"},
-  {t:245,text:""},
+  // ── 玉佛前 ──
+  {t:4,  text:"绿度母是什么样的菩萨呢"},
+  {t:10, text:"听她说话会觉得心中的巨石浮上来"},
+  {t:16, text:"脑海里的幸福与烦恼都如蒸墨般丝散"},
+  {t:22, text:"归还于眼泪"},
+  {t:28, text:"不安焦灼都连同经血一起，归还于土地"},
+  {t:35, text:"浑身都像是缩小了似的，跪立在我胸前的玉佛前"},
+  // ── 方舟搁浅 ──
+  {t:48, text:"七月让人空虚"},
+  {t:54, text:"空虚感像巨大的热浪，把心底都晒出水泡了"},
+  {t:60, text:"心里在抽着火辣的鞭子，人却像头疯驴子在头脑里打转"},
+  {t:67, text:"身体不能力行，心却受累无比"},
+  {t:74, text:"方舟的脑子里担着一股深重的罪恶感"},
+  {t:81, text:"然而夏日干涸，船没有轮子"},
+  {t:88, text:"停驻在陆地中央，沉重、尴尬又煎熬"},
+  // ── 藻泽与玻璃罐桃花 ──
+  {t:98, text:"或者在炎炎夏日好好地照顾自己"},
+  {t:104,text:"在岸边为自己上上油漆"},
+  {t:110,text:"待到潮水归来，这世界变成一个巨大的海平面"},
+  {t:118,text:"她便能稳稳地前行"},
+  {t:124,text:"夏日，让我多流一些水"},
+  {t:130,text:"这些日子心底越来越宽松了"},
+  {t:136,text:"柔软的藻泽地托起了小小的船桨"},
+  {t:142,text:"内心里有一圆玻璃罐子里的桃花"},
+  {t:148,text:"原想写桃花源，但并没有那么静水流深"},
+  // ── 梦中 ──
+  {t:154,text:"昨夜梦里又回精神病院了"},
+  {t:160,text:"封闭的病房，消毒水一尘不染"},
+  {t:166,text:"也没有很多人，不像现实里那样粘腻嘈杂"},
+  {t:172,text:"我忘记病房的样子"},
+  {t:177,text:"只记得自己不想在病房里呆"},
+  {t:183,text:"也不想被医生护士抓到"},
+  {t:188,text:"便去卫生间淋浴房躲着"},
+  {t:193,text:"层高很矮，灰色的瓷砖"},
+  {t:198,text:"深红色的地板"},
+  {t:203,text:"由于光线很暗很冷，像大厦里狭长的阁楼"},
+  {t:210,text:"我躲在了最后一个隔间"},
+  {t:216,text:"空间似乎透视般近大远小"},
+  {t:222,text:"我便在最小那里，身体蜷缩"},
+  {t:228,text:"祈祷不要有人来"},
+  {t:234,text:"查房的最后时间似乎也已经过去了"},
+  {t:240,text:"好安静"},
+  {t:245,text:"我想着晚上就在这里睡吧"},
+  {t:251,text:"我不想回病房"},
+  {t:256,text:"……"},
+  {t:262,text:"但不久就有很多人进来"},
+  {t:268,text:"我不敢出声"},
+  {t:274,text:"好像她们是来抓我的一样"},
+  {t:280,text:"但还是被推门走进了"},
+  {t:285,text:"一个女孩进来"},
+  {t:290,text:"我往后移动，要把淋浴的地方让出来"},
+  {t:295,text:"但显然，她望见我完全无所谓似的"},
+  {t:301,text:"我肯定她也是个疯子"},
+  {t:306,text:"我大概穿着一条白色的麻布裙子"},
+  {t:312,text:"我慌张地在一边"},
+  {t:317,text:"她把手伸进来"},
+  {t:321,text:"我的大腿内侧似乎碰到了她的手指"},
+  {t:326,text:"冰冰凉凉的"},
+  {t:330,text:"打开我的唇齿"},
+  {t:335,text:"我好想流泪"},
+  {t:339,text:"但低着头，任她慢慢往里伸"},
+  {t:345,text:"她似乎还示意我不要说话"},
+  {t:350,text:"她会保护我"},
+  {t:355,text:"我们可以一起呆在这里"},
+  {t:360,text:"或者去别的世界"},
+  {t:366,text:"水亮晶晶地流下来"},
+  {t:372,text:"慢慢地像晶莹的珍珠"},
+  {t:377,text:"然后我便醒来了"},
 ];
 
 // ── Music cues ──
 function musicAll(){
   if(!AC) return;
-  // Opening — 黄慧音 drone + bell
-  huangDrone(50,0,35);
-  huangDrone(75,2,30);
-  huangBell(330,5,8);
-  huangBell(440,12,6);
-  // Bathroom enters — cold drone (Twin Peaks)
-  coldDrone(42,32,28);
-  heartbeat(35,52,20);
-  // Hiding — tension
-  coldDrone(38,60,35);
-  huangDrone(55,62,33);
-  zimmerSwell(35,65,25);
-  // Quiet — 安溥 breath
-  anpuBreath(196,97,18);
-  anpuBreath(247,100,15);
-  huangBell(523,102,10);
-  // People — disruption
-  coldDrone(35,117,20);
-  heartbeat(118,65,18);
-  zimmerSwell(30,120,16);
-  // Girl enters — intimate mix
-  anpuBreath(293,140,20);
-  anpuBreath(370,144,18);
-  huangDrone(65,142,40);
-  heartbeat(145,50,35);
-  waterTex(148,30);
-  huangBell(587,150,12);
-  // Protected — warmth returns
-  anpuBreath(330,187,20);
-  anpuBreath(261,190,17);
-  huangDrone(73,188,30);
-  zimmerSwell(45,190,25);
-  // Awakening — Green Tara ending
-  huangBell(440,222,10);
-  huangBell(554,226,8);
-  huangBell(660,230,7);
-  anpuBreath(392,225,20);
-  huangDrone(82,224,26);
-  zimmerSwell(55,228,20);
+  // ── 玉佛前 (0-45s) — 黄慧音 sacred bells + drone ──
+  huangDrone(50,0,45);
+  huangDrone(75,3,40);
+  huangBell(330,6,10);
+  huangBell(440,14,8);
+  huangBell(554,22,7);
+  anpuBreath(220,10,30);
+  // ── 方舟搁浅 (45-95s) — Zimmer oppressive swell + cold drone ──
+  coldDrone(35,45,50);
+  zimmerSwell(30,48,40);
+  huangDrone(42,50,40);
+  heartbeat(48,50,30);
+  // ── 藻泽桃花 (95-150s) — 安溥 softening + brightening ──
+  anpuBreath(196,97,25);
+  anpuBreath(247,100,22);
+  anpuBreath(330,105,20);
+  huangDrone(65,98,48);
+  huangBell(523,105,10);
+  huangBell(659,115,8);
+  // Brightening at end — luminous
+  anpuBreath(392,135,15);
+  huangBell(784,140,8);
+  // ── 病院走廊 (150-178s) — cold Twin Peaks ──
+  coldDrone(42,150,28);
+  huangDrone(55,152,26);
+  heartbeat(152,52,25);
+  // ── 淋浴房 (178-202s) — tension ──
+  coldDrone(38,178,24);
+  heartbeat(180,55,22);
+  waterTex(182,20);
+  // ── 躲藏 (202-232s) — Zimmer deep ──
+  coldDrone(35,202,30);
+  huangDrone(50,204,28);
+  zimmerSwell(32,205,27);
+  // ── 安静 (232-248s) — 安溥 breath ──
+  anpuBreath(196,233,15);
+  anpuBreath(247,236,12);
+  huangBell(523,238,9);
+  // ── 闯入 (248-270s) — disruption ──
+  coldDrone(33,248,22);
+  heartbeat(250,68,18);
+  zimmerSwell(28,252,18);
+  // ── 女孩 (270-315s) — intimate mix ──
+  anpuBreath(293,272,25);
+  anpuBreath(370,276,22);
+  huangDrone(65,274,40);
+  heartbeat(275,50,35);
+  waterTex(278,30);
+  huangBell(587,282,12);
+  // ── 保护 (315-348s) — warmth ──
+  anpuBreath(330,317,20);
+  anpuBreath(261,320,17);
+  huangDrone(73,318,30);
+  zimmerSwell(45,320,25);
+  // ── 绿度母结尾 (348-380s) — transcendent ──
+  huangBell(440,350,12);
+  huangBell(554,354,10);
+  huangBell(660,358,9);
+  huangBell(784,362,8);
+  anpuBreath(392,355,25);
+  huangDrone(82,352,28);
+  zimmerSwell(55,356,24);
 }
 
 // ═══════════════════════════════════════
