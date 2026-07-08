@@ -177,8 +177,10 @@ function initAudio(){
   try{
     const A=window.AudioContext||window.webkitAudioContext;
     if(!A) return;
-    AC=new A();mg=AC.createGain();mg.gain.value=0.3;mg.connect(AC.destination);
-  }catch(e){AC=null}
+    AC=new A();mg=AC.createGain();mg.gain.value=0.5;mg.connect(AC.destination);
+    // Resume if suspended (required by Chrome/Safari after user gesture)
+    if(AC.state==='suspended') AC.resume();
+  }catch(e){console.warn('Audio init failed:',e);AC=null}
 }
 function stopAll(){an.forEach(n=>{try{n.stop()}catch(e){}});an.length=0}
 
@@ -371,7 +373,7 @@ function drawBuddha(p,time){
   ctx.beginPath();ctx.ellipse(kx,ky,15,21,0.1,2.8,4.5);ctx.stroke();
 }
 
-// ── Scene 1: 方舟搁浅 ──
+// ── Scene 1: 木船搁浅 ──
 function drawArk(p,time){
   ctx.fillStyle='#050404';ctx.fillRect(0,0,W,H);
 
@@ -1003,12 +1005,12 @@ const cues=[
   {t:22, text:"归还于眼泪"},
   {t:28, text:"不安焦灼都连同经血一起，归还于土地"},
   {t:35, text:"浑身都像是缩小了似的，跪立在我胸前的玉佛前"},
-  // ── 方舟搁浅 ──
+  // ── 木船搁浅 ──
   {t:48, text:"七月让人空虚"},
   {t:54, text:"空虚感像巨大的热浪，把心底都晒出水泡了"},
   {t:60, text:"心里在抽着火辣的鞭子，人却像头疯驴子在头脑里打转"},
   {t:67, text:"身体不能力行，心却受累无比"},
-  {t:74, text:"方舟的脑子里担着一股深重的罪恶感"},
+  {t:74, text:"我的脑子里担着一股深重的罪恶感"},
   {t:81, text:"然而夏日干涸，船没有轮子"},
   {t:88, text:"停驻在陆地中央，沉重、尴尬又煎熬"},
   // ── 藻泽与玻璃罐桃花 ──
@@ -1076,7 +1078,7 @@ function musicAll(){
   huangBell(440,14,8);
   huangBell(554,22,7);
   anpuBreath(220,10,30);
-  // ── 方舟搁浅 (45-95s) — Zimmer oppressive swell + cold drone ──
+  // ── 木船搁浅 (45-95s) — Zimmer oppressive swell + cold drone ──
   coldDrone(35,45,50);
   zimmerSwell(30,48,40);
   huangDrone(42,50,40);
@@ -1173,6 +1175,7 @@ function update(time){
 function start(){
   if(running) return;
   initAudio();
+  if(AC&&AC.state==='suspended') AC.resume();
   stopAll();
   musicAll();
   running=true;startTime=performance.now();lastCue=-1;
